@@ -502,6 +502,54 @@ AM_CONDITIONAL([OPENTHREAD_ENABLE_NCP_FTD],     [test "${enable_ncp_app_ftd}" ==
 AM_CONDITIONAL([OPENTHREAD_ENABLE_NCP_RADIO],   [test "${enable_ncp_app_radio}" == "yes"])
 
 #
+# PP node
+#
+AC_ARG_ENABLE(pp-node,
+    [AS_HELP_STRING([--enable-pp-node],[Enable PP node (1|2|3|4) @<:@default=1@:>@.])],
+    [
+        case "${enableval}" in
+
+        1)
+            pp_node=1
+            ;;
+
+        2)
+            pp_node=2
+            ;;
+
+        3)
+            pp_node=3
+            ;;
+            
+        4)
+        	pp_node=4
+            ;;
+
+        *)
+            AC_MSG_ERROR([Invalid value ${enableval} for --enable-pp-node])
+            ;;
+        esac
+    ],
+    [
+     pp_node=0
+    ]
+    )
+
+
+AC_MSG_CHECKING([pp node number])
+AC_MSG_RESULT(${pp_node})
+
+AC_SUBST(PP_ENABLE_1)
+AC_SUBST(PP_ENABLE_2)
+AC_SUBST(PP_ENABLE_3)
+AC_SUBST(PP_ENABLE_4)
+
+AM_CONDITIONAL([PP_ENABLE_1],      [test "${pp_node}" == "1"])
+AM_CONDITIONAL([PP_ENABLE_2],      [test "${pp_node}" == "2"])
+AM_CONDITIONAL([PP_ENABLE_3],      [test "${pp_node}" == "3"])
+AM_CONDITIONAL([PP_ENABLE_4],      [test "${pp_node}" == "4"])
+
+#
 # NCP BUS - how does the NCP talk to the host?
 #
 
@@ -1547,6 +1595,10 @@ examples/Makefile
 examples/apps/Makefile
 examples/apps/cli/Makefile
 examples/apps/ncp/Makefile
+examples/apps/pp_1/Makefile
+examples/apps/pp_2/Makefile
+examples/apps/pp_3/Makefile
+examples/apps/pp_4/Makefile
 examples/platforms/Makefile
 examples/platforms/cc2538/Makefile
 examples/platforms/cc2650/Makefile
@@ -1644,6 +1696,7 @@ AC_MSG_NOTICE([
   OpenThread builtin mbedtls support        : ${enable_builtin_mbedtls}
   OpenThread TMF Proxy support              : ${enable_tmf_proxy}
   OpenThread Commissioner support           : ${enable_commissioner}
+  OpenThread PP Node                        : ${pp_node}
   OpenThread Joiner support                 : ${enable_joiner}
   OpenThread DTLS support                   : ${enable_dtls}
   OpenThread Jam Detection support          : ${enable_jam_detection}

@@ -33,6 +33,10 @@ include $(abs_top_nlbuild_autotools_dir)/automake/pre.am
 DIST_SUBDIRS                            = \
     cli                                   \
     ncp                                   \
+    pp_1                                  \
+    pp_2                                  \
+    pp_3                                  \
+    pp_4                                  \
     $(NULL)
 
 # Always build (e.g. for 'make all') these subdirectories.
@@ -41,11 +45,27 @@ SUBDIRS                                 = \
     $(NULL)
 
 if OPENTHREAD_ENABLE_CLI
-SUBDIRS                                += cli
+# SUBDIRS                                += cli
 endif
 
 if OPENTHREAD_ENABLE_NCP
-SUBDIRS                                += ncp
+# SUBDIRS                                += ncp
+endif
+
+if PP_ENABLE_1
+SUBDIRS                                += pp_1
+endif
+
+if PP_ENABLE_2
+SUBDIRS                                += pp_2
+endif
+
+if PP_ENABLE_3
+SUBDIRS                                += pp_3
+endif
+
+if PP_ENABLE_4
+SUBDIRS                                += pp_4
 endif
 
 # Always pretty (e.g. for 'make pretty') these subdirectories.
@@ -53,6 +73,10 @@ endif
 PRETTY_SUBDIRS                          = \
     cli                                   \
     ncp                                   \
+    pp_1                                  \
+    pp_2                                  \
+    pp_3                                  \
+    pp_4                                  \
     $(NULL)
 
 include $(abs_top_nlbuild_autotools_dir)/automake/post.am

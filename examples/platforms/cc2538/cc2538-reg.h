@@ -174,7 +174,10 @@
 
 #define UART0_BASE                              0x4000C000
 #define UART1_BASE                              0x4000D000
-#define GPIO_A_BASE                             0x400D9000  // GPIO
+#define GPIO_A_BASE                             0x400D9000  // GPIO A
+#define GPIO_B_BASE                             0x400DA000  // GPIO B
+#define GPIO_C_BASE                             0x400DB000  // GPIO C
+#define GPIO_D_BASE                             0x400DC000  // GPIO D
 
 #define GPIO_O_DIR                              0x00000400
 #define GPIO_O_AFSEL                            0x00000420
@@ -183,6 +186,10 @@
 #define GPIO_PIN_1                              0x00000002  // GPIO pin 1
 #define GPIO_PIN_2                              0x00000004  // GPIO pin 2
 #define GPIO_PIN_3                              0x00000008  // GPIO pin 3
+#define GPIO_PIN_4                              0x00000010  // GPIO pin 4
+#define GPIO_PIN_5                              0x00000020  // GPIO pin 5
+#define GPIO_PIN_6                              0x00000040  // GPIO pin 6
+#define GPIO_PIN_7                              0x00000080  // GPIO pin 7
 
 #define UART_O_DR                               0x00000000  // UART data
 #define UART_O_FR                               0x00000018  // UART flag

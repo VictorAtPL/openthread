@@ -26,6 +26,22 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
+ifeq ($(PP_1),1)
+configure_OPTIONS              += --enable-pp-node=1
+endif
+
+ifeq ($(PP_2),1)
+configure_OPTIONS              += --enable-pp-node=2
+endif
+
+ifeq ($(PP_3),1)
+configure_OPTIONS              += --enable-pp-node=3
+endif
+
+ifeq ($(PP_4),1)
+configure_OPTIONS              += --enable-pp-node=4
+endif
+
 ifeq ($(BORDER_ROUTER),1)
 configure_OPTIONS              += --enable-border-router
 endif
