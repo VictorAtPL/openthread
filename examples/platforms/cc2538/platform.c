@@ -33,6 +33,9 @@
  */
 #include "platform-cc2538.h"
 #include <openthread/config.h>
+// PIOTR PODBIELSKI
+#include "rangeext.h"
+// PIOTR PODBIELSKI
 
 otInstance *sInstance;
 
@@ -44,6 +47,7 @@ void PlatformInit(int argc, char *argv[])
     cc2538AlarmInit();
     cc2538RandomInit();
     cc2538RadioInit();
+    rangeext_init(3, 2, 3, 2);
 
     (void)argc;
     (void)argv;
