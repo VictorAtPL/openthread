@@ -1601,6 +1601,8 @@ examples/apps/pp_3/Makefile
 examples/apps/pp_4/Makefile
 examples/platforms/Makefile
 examples/platforms/cc2538/Makefile
+examples/platforms/cc2538/inc/Makefile
+examples/platforms/cc2538/source/Makefile
 examples/platforms/cc2650/Makefile
 examples/platforms/cc2652/Makefile
 examples/platforms/da15000/Makefile

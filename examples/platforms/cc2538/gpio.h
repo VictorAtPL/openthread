@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "interrupt.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

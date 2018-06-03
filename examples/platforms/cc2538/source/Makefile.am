@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2017, The OpenThread Authors.
+#  Copyright (c) 2016, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,23 +26,77 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-#
-# cc2538 platform-specific Makefile
-#
+include $(abs_top_nlbuild_autotools_dir)/automake/pre.am
 
-LDADD_COMMON                                                          += \
-    $(top_builddir)/examples/platforms/cc2538/libopenthread-cc2538.a     \
-    $(top_builddir)/examples/platforms/cc2538/source/libti-cc2538.a      \
+lib_LIBRARIES                             = libti-cc2538.a
+
+PLATFORM_SOURCES                          = \
+adc.c \
+aes.c \
+ccm.c \
+cpu.c \
+debug.c \
+flash.c \
+gpio.c \
+gptimer.c \
+i2c.c \
+interrupt.c \
+ioc.c \
+pka.c \
+sha256.c \
+sleepmode.c \
+ssi.c \
+sys_ctrl.c \
+systick.c \
+uart.c \
+udma.c \
+watchdog.c \
     $(NULL)
     
-CFLAGS_COMMON                                                       = \
-    -I$(top_srcdir)/examples/platforms/cc2538/inc \
-    $(NULL)
-    
-CPPFLAGS_COMMON                                                       += \
-    -I$(top_srcdir)/examples/platforms/cc2538/inc \
+libti_cc2538_a_SOURCES            = \
+    $(PLATFORM_SOURCES)                     \
     $(NULL)
 
-LDFLAGS_COMMON                                                        += \
-    -T $(top_srcdir)/examples/platforms/cc2538/cc2538.ld                 \
+libti_cc2538_a_CFLAGS = "-Wno-error=strict-aliasing" \
+	"-Wno-error=pointer-to-int-cast" \
+	"-Wno-error=unused-parameter" \
+	"-Wno-error=attributes" \
+	"-Wno-error=sign-compare" \
+    -I$(top_srcdir)/examples/platforms/cc2538/inc \
+    -DCC2538_USE_ALTERNATE_INTERRUPT_MAP=1 \
+	$(NULL)
+	
+noinst_HEADERS                     = \
+   adc.h \
+aes.h \
+bl_commands.h \
+ccm.h \
+cpu.h \
+debug.h \
+ecc_curveinfo.h \
+flash.h \
+gpio.h \
+gptimer.h \
+i2c.h \
+interrupt.h \
+ioc.h \
+pka.h \
+rom.h \
+sha256.h \
+sleepmode.h \
+ssi.h \
+sys_ctrl.h \
+systick.h \
+uart.h \
+udma.h \
+watchdog.h \
     $(NULL)
+
+PRETTY_FILES                             = \
+    $(PLATFORM_SOURCES)                    \
+    $(noinst_HEADERS)                      \
+    $(NULL)
+    
+    
+
+include $(abs_top_nlbuild_autotools_dir)/automake/post.am

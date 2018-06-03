@@ -28,11 +28,24 @@
 
 include $(abs_top_nlbuild_autotools_dir)/automake/pre.am
 
+DIST_SUBDIRS                             = \
+	source								   \
+	$(NULL)
+
+SUBDIRS                                  = \
+	source								   \
+    $(NULL)
+    
+PRETTY_SUBDIRS                           = \
+    source								   \
+    $(NULL)
+    
 lib_LIBRARIES                             = libopenthread-cc2538.a
 
 libopenthread_cc2538_a_CPPFLAGS           = \
     -I$(top_srcdir)/include                 \
     -I$(top_srcdir)/examples/platforms      \
+    -I$(top_srcdir)/examples/platforms/cc2538/inc \
     -I$(top_srcdir)/src/core                \
     $(NULL)
 
@@ -61,6 +74,7 @@ noinst_HEADERS                            = \
     rom-utility.h                           \
     gpio.h                                  \
     rangeext.h                              \
+    interrupt.h                             \
     $(NULL)
 
 PRETTY_FILES                             = \

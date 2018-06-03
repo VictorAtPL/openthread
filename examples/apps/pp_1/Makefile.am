@@ -37,7 +37,7 @@ CPPFLAGS_COMMON                                                       += \
     -I$(top_srcdir)/src/core                                             \
     -I$(top_srcdir)/examples/platforms                                   \
     $(NULL)
-
+    
 LDADD_COMMON                                                          += \
     $(NULL)
 

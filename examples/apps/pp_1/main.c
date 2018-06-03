@@ -53,6 +53,7 @@ pseudo_reset:
 
     otNcpInit(sInstance);
 
+    uint8_t steps = 0;
     while (!PlatformPseudoResetWasRequested())
     {
         otTaskletsProcess(sInstance);
