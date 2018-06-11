@@ -51,9 +51,10 @@ pseudo_reset:
     sInstance = otInstanceInitSingle();
     assert(sInstance);
 
+    otPlatRadioSetTransmitPower(sInstance, -5);
+
     otNcpInit(sInstance);
 
-    uint8_t steps = 0;
     while (!PlatformPseudoResetWasRequested())
     {
         otTaskletsProcess(sInstance);
@@ -79,7 +80,7 @@ void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const char *aFormat
 
     va_list ap;
     va_start(ap, aFormat);
-    otCliPlatLogv(aLogLevel, aLogRegion, aFormat, ap);
+    otNcpPlatLogv(aLogLevel, aLogRegion, aFormat, ap);
     va_end(ap);
 }
 #endif

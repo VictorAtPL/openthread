@@ -35,7 +35,6 @@
 #include <openthread/openthread.h>
 #include <openthread/platform/logging.h>
 
-// PIOTR PODBIELSKI
 #include "rangeext.h"
 
 #include "hw_ints.h"
@@ -46,14 +45,66 @@
 #include <source/interrupt.h>
 #include <source/sys_ctrl.h>
 #include <source/gptimer.h>
+#include <source/adc.h>
 
 #include <openthread/message.h>
 #include <openthread/udp.h>
+#include <openthread/coap.h>
 
 #include <string.h>
-// PIOTR PODBIELSKI
+#include <stdio.h>
 
 #include "platform.h"
+
+int Hex2Bin(const char *aHex, uint8_t *aBin, uint16_t aBinLength)
+{
+    size_t      hexLength = strlen(aHex);
+    const char *hexEnd    = aHex + hexLength;
+    uint8_t *   cur       = aBin;
+    uint8_t     numChars  = hexLength & 1;
+    uint8_t     byte      = 0;
+
+    if ((hexLength + 1) / 2 > aBinLength)
+    {
+        return -1;
+    }
+
+    while (aHex < hexEnd)
+    {
+        if ('A' <= *aHex && *aHex <= 'F')
+        {
+            byte |= 10 + (*aHex - 'A');
+        }
+        else if ('a' <= *aHex && *aHex <= 'f')
+        {
+            byte |= 10 + (*aHex - 'a');
+        }
+        else if ('0' <= *aHex && *aHex <= '9')
+        {
+            byte |= *aHex - '0';
+        }
+        else
+        {
+            return -1;
+        }
+
+        aHex++;
+        numChars++;
+
+        if (numChars >= 2)
+        {
+            numChars = 0;
+            *cur++   = byte;
+            byte     = 0;
+        }
+        else
+        {
+            byte <<= 4;
+        }
+    }
+
+    return (int)(cur - aBin);
+}
 
 uint16_t HostSwap16(uint16_t v)
 {
@@ -66,76 +117,187 @@ void otTaskletsSignalPending(otInstance *aInstance)
 }
 
 static volatile uint32_t g_ui32Counter = 0;
-
-
-otInstance *sInstance;
-otUdpSocket mSocket;
+static volatile otInstance *sInstanceGlobal;
+static volatile otUdpSocket mSocketGlobal;
+static volatile otUdpSocket mSocketThroughputGlobal;
+static volatile otSockAddr sockaddrGlobal;
+static volatile otSockAddr sockaddrThroughputGlobal;
+static volatile otCoapResource mResourceGlobal;
+const char mUriPath[] = "gpi_value";
 
 void HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
 {
 	(void)aContext;
 	uint8_t buf[1500];
 	int     length;
-
-	otPlatLog(OT_LOG_LEVEL_DEBG, OT_LOG_REGION_API, "%d bytes from ", otMessageGetLength(aMessage) - otMessageGetOffset(aMessage));
-	otPlatLog(OT_LOG_LEVEL_DEBG, OT_LOG_REGION_API, "%x:%x:%x:%x:%x:%x:%x:%x %d ", HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[0]),
-		HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[1]), HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[2]),
-		HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[3]), HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[4]),
-		HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[5]), HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[6]),
-		HostSwap16(aMessageInfo->mPeerAddr.mFields.m16[7]), aMessageInfo->mPeerPort);
+	otInstance *sInstance = (otInstance*) sInstanceGlobal;
 
 	length      = otMessageRead(aMessage, otMessageGetOffset(aMessage), buf, sizeof(buf) - 1);
 	buf[length] = '\0';
 
-	otUdpSend(&mSocket, aMessage, aMessageInfo);
+
+    otMessageInfo newMessageInfo;
+
+    memcpy(&newMessageInfo.mSockAddr, (otSockAddr*)&sockaddrGlobal, sizeof(otIp6Address));
+    memcpy(&newMessageInfo.mPeerAddr, (otIp6Address *)&aMessageInfo->mPeerAddr, sizeof(otIp6Address));
+    newMessageInfo.mPeerPort = aMessageInfo->mPeerPort;
+    newMessageInfo.mInterfaceId = OT_NETIF_INTERFACE_ID_THREAD;
+
+    otMessage *newMessage = otUdpNewMessage(sInstance, true);
+    if (newMessage != NULL) {
+    	otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully constructed new message");
+    }
+
+    if (otMessageAppend(newMessage, buf, length) == OT_ERROR_NONE) {
+		otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully appended message");
+	}
+
+	if (otUdpSend((otUdpSocket*)&mSocketGlobal, newMessage, &newMessageInfo) == OT_ERROR_NONE) {
+		otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully send message");
+	}
+
+//	otMessageFree(newMessage);
+//	otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully freed message");
+}
+
+void HandleUdpThroughputReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
+{
+	(void)aContext;
+	uint8_t buf[77];
+	int     length;
+	otInstance *sInstance = (otInstance*) sInstanceGlobal;
+
+	length      = otMessageRead(aMessage, otMessageGetOffset(aMessage), buf, sizeof(buf));
+
+    otMessageInfo newMessageInfo;
+    memcpy(&newMessageInfo.mSockAddr, (otSockAddr*)&sockaddrThroughputGlobal, sizeof(otIp6Address));
+    memcpy(&newMessageInfo.mPeerAddr, (otIp6Address *)&aMessageInfo->mPeerAddr, sizeof(otIp6Address));
+    newMessageInfo.mPeerPort = 6002;
+    newMessageInfo.mInterfaceId = OT_NETIF_INTERFACE_ID_THREAD;
+
+    otMessage *newMessage = otUdpNewMessage(sInstance, true);
+    if (newMessage != NULL) {
+    	otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully constructed new message");
+    }
+
+    if (otMessageAppend(newMessage, buf, length) == OT_ERROR_NONE) {
+		otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully appended message");
+	}
+
+	if (otUdpSend((otUdpSocket*)&mSocketThroughputGlobal, newMessage, &newMessageInfo) == OT_ERROR_NONE) {
+		otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully send message");
+	}
+
+//	otMessageFree(newMessage);
+//	otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully freed message");
+}
+
+void HandleServerResponse(void *aContext, otCoapHeader *aHeader, otMessage *aMessage, const otMessageInfo *aMessageInfo) {
+	(void)aContext;
+	(void)aMessage;
+	otCoapHeader responseHeader;
+	otMessage *  responseMessage;
+	otCoapCode   responseCode = OT_COAP_CODE_EMPTY;
+	otInstance *sInstance = (otInstance*) sInstanceGlobal;
+
+	if ((otCoapHeaderGetType(aHeader) == OT_COAP_TYPE_CONFIRMABLE) || otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+	{
+		if (otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+		{
+			responseCode = OT_COAP_CODE_CONTENT;
+		}
+		else
+		{
+			responseCode = OT_COAP_CODE_VALID;
+		}
+
+		otCoapHeaderInit(&responseHeader, OT_COAP_TYPE_ACKNOWLEDGMENT, responseCode);
+		otCoapHeaderSetMessageId(&responseHeader, otCoapHeaderGetMessageId(aHeader));
+		otCoapHeaderSetToken(&responseHeader, otCoapHeaderGetToken(aHeader), otCoapHeaderGetTokenLength(aHeader));
+
+		if (otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+		{
+			otCoapHeaderSetPayloadMarker(&responseHeader);
+		}
+
+		SOCADCSingleStart(SOCADC_AIN6);
+		while (!SOCADCEndOfCOnversionGet())
+		{
+		}
+		uint16_t ui16Dummy = SOCADCDataGet() >> SOCADC_10_BIT_RSHIFT;
+
+		responseMessage = otCoapNewMessage(sInstance, &responseHeader);
+
+		if (otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+		{
+			otMessageAppend(responseMessage, &ui16Dummy, sizeof(uint16_t));
+		}
+
+		otCoapSendResponse(sInstance, responseMessage, aMessageInfo);
+	}
 }
 
 void
 Timer0BIntHandler(void)
 {
-	//
-	// Clear the timer interrupt flag.
-	//
+	otInstance *sInstance = (otInstance*) sInstanceGlobal;
+
 	TimerIntClear(GPTIMER0_BASE, GPTIMER_TIMB_TIMEOUT);
 
-	//
-	// Update the periodic interrupt counter.
-	//
 	g_ui32Counter++;
 
-	if (g_ui32Counter % 2 == 0) {
+	if (g_ui32Counter % 2 == 0) { // do every one second
 		// check Thread network
 		if (otThreadGetDeviceRole(sInstance) == OT_DEVICE_ROLE_CHILD) {
 		    IntDisable(INT_TIMER0B);
 		    TimerIntDisable(GPTIMER0_BASE, GPTIMER_TIMB_TIMEOUT);
 		    TimerIntClear(GPTIMER0_BASE, GPTIMER_TIMB_TIMEOUT);
 
-		    GPIOPinWrite(GPIO_D_BASE, 1, 0x00);
-
+		    // look for mesh local EID
 		    otNetifAddress *tmp_otNetifAddess = (otNetifAddress*)otIp6GetUnicastAddresses(sInstance);
 
 		    while (tmp_otNetifAddess != NULL) {
-		    	if (tmp_otNetifAddess->mAddress.mFields.m8[0] == 0xFD) {
+		    	if (tmp_otNetifAddess->mAddress.mFields.m8[0] == 0xFD && !tmp_otNetifAddess->mRloc) {
+		    		otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Found 0xFD");
 		    		break;
 		    	}
 
 		    	tmp_otNetifAddess = tmp_otNetifAddess->mNext;
 		    }
 
-		    otPlatLog(OT_LOG_LEVEL_DEBG, OT_LOG_REGION_API, "Address obtained from otIp6GetUnicastAddresses:");
-		    otPlatLog(OT_LOG_LEVEL_DEBG, OT_LOG_REGION_API, "%x:%x:%x:%x:%x:%x:%x:%x", HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[0]),
-		    				HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[1]), HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[2]),
-		    				HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[3]), HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[4]),
-		    				HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[5]), HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[6]),
-		    				HostSwap16(tmp_otNetifAddess->mAddress.mFields.m16[7]));
+		    // prepare UDP 6000
+		    memcpy((otIp6Address*)&sockaddrGlobal.mAddress, &tmp_otNetifAddess->mAddress, sizeof(otIp6Address));
+		    sockaddrGlobal.mPort    = 6000;
+		    sockaddrGlobal.mScopeId = OT_NETIF_INTERFACE_ID_THREAD;
 
-		    otSockAddr sockaddr;
-		    memcpy(&sockaddr.mAddress, &tmp_otNetifAddess->mAddress, sizeof(otIp6Address));
-		    sockaddr.mPort    = 6000;
-			sockaddr.mScopeId = OT_NETIF_INTERFACE_ID_THREAD;
+		    if (otUdpOpen(sInstance, (otUdpSocket*)&mSocketGlobal, HandleUdpReceive, (void*)NULL) == OT_ERROR_NONE) {
+		    	otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully opened udp");
+		    }
 
-			otUdpBind(&mSocket, &sockaddr);
-		    otUdpOpen(sInstance, &mSocket, HandleUdpReceive, (void*)NULL);
+		    if (otUdpBind((otUdpSocket*)&mSocketGlobal, (otSockAddr*)&sockaddrGlobal) == OT_ERROR_NONE) {
+		    	otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully bind udp");
+		    }
+
+		    // prepare UDP 6001 - Throughput
+		    memcpy((otIp6Address*)&sockaddrThroughputGlobal.mAddress, &tmp_otNetifAddess->mAddress, sizeof(otIp6Address));
+		    sockaddrThroughputGlobal.mPort    = 6001;
+		    sockaddrThroughputGlobal.mScopeId = OT_NETIF_INTERFACE_ID_THREAD;
+
+			if (otUdpOpen(sInstance, (otUdpSocket*)&mSocketThroughputGlobal, HandleUdpThroughputReceive, (void*)NULL) == OT_ERROR_NONE) {
+				otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully opened udp");
+			}
+
+			if (otUdpBind((otUdpSocket*)&mSocketThroughputGlobal, (otSockAddr*)&sockaddrThroughputGlobal) == OT_ERROR_NONE) {
+				otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully bind udp");
+			}
+
+		    // COAP
+		    // mResourceGlobal
+		    mResourceGlobal.mUriPath = mUriPath;
+		    mResourceGlobal.mContext = (void*)NULL;
+		    mResourceGlobal.mHandler = HandleServerResponse;
+		    otCoapAddResource(sInstance, (otCoapResource*)&mResourceGlobal);
+		    otCoapStart(sInstance, OT_DEFAULT_COAP_PORT);
 
 		}
 	}
@@ -149,36 +311,45 @@ Timer0BIntHandler(void)
 
 int main(int argc, char *argv[])
 {
-//    SysCtrlIOClockSet(SYS_CTRL_SYSDIV_32MHZ);
-//    SysCtrlPeripheralEnable(SYS_CTRL_PERIPH_GPT0);
-//
-//    TimerConfigure(GPTIMER0_BASE, GPTIMER_CFG_SPLIT_PAIR |
-//                       GPTIMER_CFG_A_ONE_SHOT | GPTIMER_CFG_B_PERIODIC);
-//
-//    TimerPrescaleSet(GPTIMER0_BASE, GPTIMER_B, 255);
-//
-//    TimerLoadSet(GPTIMER0_BASE, GPTIMER_B, SysCtrlClockGet() / 255);
-//    TimerIntRegister(GPTIMER0_BASE, GPTIMER_B, Timer0BIntHandler);
-//    IntMasterEnable();
-//
-//    GPIODirModeSet(GPIO_D_BASE, 1, GPIO_DIR_MODE_OUT);
+    SysCtrlIOClockSet(SYS_CTRL_SYSDIV_32MHZ);
+    SysCtrlPeripheralEnable(SYS_CTRL_PERIPH_GPT0);
 
+    TimerConfigure(GPTIMER0_BASE, GPTIMER_CFG_SPLIT_PAIR |
+                       GPTIMER_CFG_A_ONE_SHOT | GPTIMER_CFG_B_PERIODIC);
+
+    TimerPrescaleSet(GPTIMER0_BASE, GPTIMER_B, 255);
+
+    TimerLoadSet(GPTIMER0_BASE, GPTIMER_B, SysCtrlClockGet() / 255);
+    TimerIntRegister(GPTIMER0_BASE, GPTIMER_B, Timer0BIntHandler);
+    IntMasterEnable();
+
+    GPIODirModeSet(GPIO_D_BASE, 1, GPIO_DIR_MODE_OUT);
 
 
 pseudo_reset:
     PlatformInit(argc, argv);
 
-//    g_ui32Counter = 0;
-//    TimerIntEnable(GPTIMER0_BASE, GPTIMER_TIMB_TIMEOUT);
-//    IntEnable(INT_TIMER0B);
-//    GPIOPinWrite(GPIO_D_BASE, 1, 0x00);
+    g_ui32Counter = 0;
+    TimerIntEnable(GPTIMER0_BASE, GPTIMER_TIMB_TIMEOUT);
+    IntEnable(INT_TIMER0B);
+    GPIOPinWrite(GPIO_D_BASE, 1, 0x00);
 
 
-    sInstance = otInstanceInitSingle();
+    otInstance *sInstance = otInstanceInitSingle();
+    sInstanceGlobal = (volatile otInstance*) sInstance;
     assert(sInstance);
 
+    otPlatRadioSetTransmitPower(sInstance, -5);
+
+    otExtAddress extAddr;
+    Hex2Bin("00124B00062CF84D", extAddr.m8, OT_EXT_ADDRESS_SIZE);
+    otLinkFilterAddAddress(sInstance, &extAddr);
+    otLinkFilterSetAddressMode(sInstance, OT_MAC_FILTER_ADDRESS_MODE_BLACKLIST);
+
+    SOCADCSingleConfigure(SOCADC_10_BIT, SOCADC_REF_EXT_AIN7);
+
     otCliUartInit(sInstance);
-//    TimerEnable(GPTIMER0_BASE, GPTIMER_B);
+    TimerEnable(GPTIMER0_BASE, GPTIMER_B);
 
     while (!PlatformPseudoResetWasRequested())
     {
