@@ -81,6 +81,8 @@ pseudo_reset:
 #endif
     assert(sInstance);
 
+    otPlatRadioSetTransmitPower(sInstance, -5);
+
     otNcpInit(sInstance);
 
 #if OPENTHREAD_ENABLE_DIAG
