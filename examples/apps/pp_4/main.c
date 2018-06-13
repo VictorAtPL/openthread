@@ -132,6 +132,8 @@ static volatile otUdpSocket mSocketGlobal;
 static volatile otSockAddr sockaddrGlobal;
 static volatile otCoapResource mResourceGlobal;
 const char mUriPath[] = "gpi_value";
+static volatile otUdpSocket mSocketThroughputGlobal;
+static volatile otSockAddr sockaddrThroughputGlobal;
 
 void HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
 {
@@ -210,6 +212,35 @@ void HandleServerResponse(void *aContext, otCoapHeader *aHeader, otMessage *aMes
     }
 }
 
+void HandleUdpThroughputReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
+{
+    (void)aContext;
+    uint8_t buf[77];
+    int length;
+    otInstance *sInstance = (otInstance *)sInstanceGlobal;
+
+    length = otMessageRead(aMessage, otMessageGetOffset(aMessage), buf, sizeof(buf));
+
+    otMessageInfo newMessageInfo;
+    memcpy(&newMessageInfo.mSockAddr, (otSockAddr*)&sockaddrThroughputGlobal, sizeof(otIp6Address));
+    memcpy(&newMessageInfo.mPeerAddr, (otIp6Address *)&aMessageInfo->mPeerAddr, sizeof(otIp6Address));
+    newMessageInfo.mPeerPort = 6002;
+    newMessageInfo.mInterfaceId = OT_NETIF_INTERFACE_ID_THREAD;
+
+    otMessage *newMessage = otUdpNewMessage(sInstance, true);
+    if (newMessage != NULL) {
+        otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully constructed new message");
+    }
+
+    if (otMessageAppend(newMessage, buf, length) == OT_ERROR_NONE) {
+        otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully appended message");
+    }
+
+    if (otUdpSend((otUdpSocket *)&mSocketThroughputGlobal, newMessage, &newMessageInfo) == OT_ERROR_NONE) {
+        otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully send message");
+    }
+}
+
 void Timer0BIntHandler(void)
 {
     otInstance *sInstance = (otInstance *) sInstanceGlobal;
@@ -255,6 +286,19 @@ void Timer0BIntHandler(void)
             mResourceGlobal.mHandler = HandleServerResponse;
             otCoapAddResource(sInstance, (otCoapResource *)&mResourceGlobal);
             otCoapStart(sInstance, OT_DEFAULT_COAP_PORT);
+
+            // prepare UDP 6001 - Throughput
+            memcpy((otIp6Address*)&sockaddrThroughputGlobal.mAddress, &tmp_otNetifAddess->mAddress, sizeof(otIp6Address));
+            sockaddrThroughputGlobal.mPort = 6001;
+            sockaddrThroughputGlobal.mScopeId = OT_NETIF_INTERFACE_ID_THREAD;
+
+            if (otUdpOpen(sInstance, (otUdpSocket *)&mSocketThroughputGlobal, HandleUdpThroughputReceive, (void *)NULL) == OT_ERROR_NONE) {
+                otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully opened udp");
+            }
+
+            if (otUdpBind((otUdpSocket *)&mSocketThroughputGlobal, (otSockAddr *)&sockaddrThroughputGlobal) == OT_ERROR_NONE) {
+                otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully bind udp");
+            }
         }
     }
 }
