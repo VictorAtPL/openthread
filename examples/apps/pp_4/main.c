@@ -130,6 +130,8 @@ static volatile uint32_t g_ui32Counter = 0;
 static volatile otInstance *sInstanceGlobal;
 static volatile otUdpSocket mSocketGlobal;
 static volatile otSockAddr sockaddrGlobal;
+static volatile otCoapResource mResourceGlobal;
+const char mUriPath[] = "gpi_value";
 
 void HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
 {
@@ -160,6 +162,51 @@ void HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *
 
     if (otUdpSend((otUdpSocket *)&mSocketGlobal, newMessage, &newMessageInfo) == OT_ERROR_NONE) {
         otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully send message");
+    }
+}
+
+void HandleServerResponse(void *aContext, otCoapHeader *aHeader, otMessage *aMessage, const otMessageInfo *aMessageInfo) {
+    (void)aContext;
+    (void)aMessage;
+    otCoapHeader responseHeader;
+    otMessage *responseMessage;
+    otCoapCode responseCode = OT_COAP_CODE_EMPTY;
+    otInstance *sInstance = (otInstance *)sInstanceGlobal;
+
+    if ((otCoapHeaderGetType(aHeader) == OT_COAP_TYPE_CONFIRMABLE) || otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+    {
+        if (otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+        {
+            responseCode = OT_COAP_CODE_CONTENT;
+        }
+        else
+        {
+            responseCode = OT_COAP_CODE_VALID;
+        }
+
+        otCoapHeaderInit(&responseHeader, OT_COAP_TYPE_ACKNOWLEDGMENT, responseCode);
+        otCoapHeaderSetMessageId(&responseHeader, otCoapHeaderGetMessageId(aHeader));
+        otCoapHeaderSetToken(&responseHeader, otCoapHeaderGetToken(aHeader), otCoapHeaderGetTokenLength(aHeader));
+
+        if (otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+        {
+            otCoapHeaderSetPayloadMarker(&responseHeader);
+        }
+
+        SOCADCSingleStart(SOCADC_AIN6);
+        while (!SOCADCEndOfCOnversionGet())
+        {
+        }
+        uint16_t ui16Dummy = SOCADCDataGet() >> SOCADC_10_BIT_RSHIFT;
+
+        responseMessage = otCoapNewMessage(sInstance, &responseHeader);
+
+        if (otCoapHeaderGetCode(aHeader) == OT_COAP_CODE_GET)
+        {
+            otMessageAppend(responseMessage, &ui16Dummy, sizeof(uint16_t));
+        }
+
+        otCoapSendResponse(sInstance, responseMessage, aMessageInfo);
     }
 }
 
@@ -201,6 +248,13 @@ void Timer0BIntHandler(void)
             if (otUdpBind((otUdpSocket *)&mSocketGlobal, (otSockAddr *)&sockaddrGlobal) == OT_ERROR_NONE) {
                 otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_API, "Successfully bind udp");
             }
+
+            // COAP
+            mResourceGlobal.mUriPath = mUriPath;
+            mResourceGlobal.mContext = (void*)NULL;
+            mResourceGlobal.mHandler = HandleServerResponse;
+            otCoapAddResource(sInstance, (otCoapResource *)&mResourceGlobal);
+            otCoapStart(sInstance, OT_DEFAULT_COAP_PORT);
         }
     }
 }
@@ -258,6 +312,8 @@ pseudo_reset:
     Hex2Bin("00124B00062CF84D", extAddr.m8, OT_EXT_ADDRESS_SIZE);
     otLinkFilterAddAddress(sInstance, &extAddr);
     otLinkFilterSetAddressMode(sInstance, OT_MAC_FILTER_ADDRESS_MODE_BLACKLIST);
+
+    SOCADCSingleConfigure(SOCADC_10_BIT, SOCADC_REF_INTERNAL);
 
     otCliUartInit(sInstance);
     TimerEnable(GPTIMER0_BASE, GPTIMER_B);
