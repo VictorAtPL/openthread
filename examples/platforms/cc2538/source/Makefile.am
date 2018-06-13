@@ -28,57 +28,75 @@
 
 include $(abs_top_nlbuild_autotools_dir)/automake/pre.am
 
-DIST_SUBDIRS                             = \
-	source								   \
+lib_LIBRARIES                             = libti-cc2538.a
+
+PLATFORM_SOURCES  = \
+    adc.c           \
+    aes.c           \
+    ccm.c           \
+    cpu.c           \
+    debug.c         \
+    flash.c         \
+    gpio.c          \
+    gptimer.c       \
+    i2c.c           \
+    interrupt.c     \
+    ioc.c           \
+    pka.c           \
+    sha256.c        \
+    sleepmode.c     \
+    ssi.c           \
+    sys_ctrl.c      \
+    systick.c       \
+    uart.c          \
+    udma.c          \
+    watchdog.c      \
+    $(NULL)
+
+libti_cc2538_a_SOURCES                  = \
+    $(PLATFORM_SOURCES)                   \
+    $(NULL)
+
+libti_cc2538_a_CFLAGS = "-Wno-error=strict-aliasing" \
+	"-Wno-error=pointer-to-int-cast"                 \
+	"-Wno-error=unused-parameter"                    \
+	"-Wno-error=attributes"                          \
+	"-Wno-error=sign-compare"                        \
+    -I$(top_srcdir)/examples/platforms/cc2538/inc    \
+    -DCC2538_USE_ALTERNATE_INTERRUPT_MAP=1           \
 	$(NULL)
-
-SUBDIRS                                  = \
-	source								   \
-    $(NULL)
-
-PRETTY_SUBDIRS                           = \
-    source								   \
-    $(NULL)
-
-lib_LIBRARIES                             = libopenthread-cc2538.a
-
-libopenthread_cc2538_a_CPPFLAGS           = \
-    -I$(top_srcdir)/include                 \
-    -I$(top_srcdir)/examples/platforms      \
-    -I$(top_srcdir)/examples/platforms/cc2538/inc \
-    -I$(top_srcdir)/src/core                \
-    $(NULL)
-
-PLATFORM_SOURCES                          = \
-    alarm.c                                 \
-    diag.c                                  \
-    flash.c                                 \
-    misc.c                                  \
-    platform.c                              \
-    radio.c                                 \
-    random.c                                \
-    startup-gcc.c                           \
-    logging.c                               \
-    uart.c                                  \
-    $(NULL)
-
-libopenthread_cc2538_a_SOURCES            = \
-    $(PLATFORM_SOURCES)                     \
-    $(NULL)
-
-noinst_HEADERS                            = \
-    cc2538-reg.h                            \
-    platform-cc2538.h                       \
-    rom-utility.h                           \
+	
+noinst_HEADERS     = \
+    adc.h            \
+    aes.h            \
+    bl_commands.h    \
+    ccm.h            \
+    cpu.h            \
+    debug.h          \
+    ecc_curveinfo.h  \
+    flash.h          \
+    gpio.h           \
+    gptimer.h        \
+    i2c.h            \
+    interrupt.h      \
+    ioc.h            \
+    pka.h            \
+    rom.h            \
+    sha256.h         \
+    sleepmode.h      \
+    ssi.h            \
+    sys_ctrl.h       \
+    systick.h        \
+    uart.h           \
+    udma.h           \
+    watchdog.h       \
     $(NULL)
 
 PRETTY_FILES                             = \
     $(PLATFORM_SOURCES)                    \
     $(noinst_HEADERS)                      \
     $(NULL)
-
-Dash                                      = -
-libopenthread_cc2538_a_LIBADD             = \
-    $(shell find $(top_builddir)/examples/platforms/utils $(Dash)type f $(Dash)name "*.o")
+    
+    
 
 include $(abs_top_nlbuild_autotools_dir)/automake/post.am

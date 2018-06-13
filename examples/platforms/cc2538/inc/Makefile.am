@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2017, The OpenThread Authors.
+#  Copyright (c) 2016, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,23 +26,40 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-#
-# cc2538 platform-specific Makefile
-#
+include $(abs_top_nlbuild_autotools_dir)/automake/pre.am
 
-LDADD_COMMON                                                          += \
-    $(top_builddir)/examples/platforms/cc2538/libopenthread-cc2538.a     \
-    $(top_builddir)/examples/platforms/cc2538/source/libti-cc2538.a      \
+noinst_HEADERS        = \
+    hw_aes.h            \
+	hw_ana_regs.h       \
+	hw_cctest.h         \
+	hw_flash_ctrl.h     \
+	hw_gpio.h           \
+	hw_gptimer.h        \
+	hw_i2cm.h           \
+	hw_i2cs.h           \
+	hw_ints.h           \
+	hw_ioc.h            \
+	hw_memmap.h         \
+	hw_nvic.h           \
+	hw_pka.h            \
+	hw_rfcore_ffsm.h    \
+	hw_rfcore_sfr.h     \
+	hw_rfcore_xreg.h    \
+	hw_smwdthrosc.h     \
+	hw_soc_adc.h        \
+	hw_ssi.h            \
+	hw_sys_ctrl.h       \
+	hw_types.h          \
+	hw_uart.h           \
+	hw_udmachctl.h      \
+	hw_udma.h           \
+	hw_usb.h            \
+    $(NULL)
+
+PRETTY_FILES                             = \
+    $(noinst_HEADERS)                      \
     $(NULL)
     
-CFLAGS_COMMON                                                       = \
-    -I$(top_srcdir)/examples/platforms/cc2538/inc \
-    $(NULL)
     
-CPPFLAGS_COMMON                                                       += \
-    -I$(top_srcdir)/examples/platforms/cc2538/inc \
-    $(NULL)
 
-LDFLAGS_COMMON                                                        += \
-    -T $(top_srcdir)/examples/platforms/cc2538/cc2538.ld                 \
-    $(NULL)
+include $(abs_top_nlbuild_autotools_dir)/automake/post.am
