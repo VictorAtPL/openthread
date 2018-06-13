@@ -60,6 +60,8 @@ PLATFORM_SOURCES                          = \
     startup-gcc.c                           \
     logging.c                               \
     uart.c                                  \
+    gpio.c                                  \
+    rangeext.c                              \
     $(NULL)
 
 libopenthread_cc2538_a_SOURCES            = \
@@ -70,6 +72,9 @@ noinst_HEADERS                            = \
     cc2538-reg.h                            \
     platform-cc2538.h                       \
     rom-utility.h                           \
+    gpio.h                                  \
+    rangeext.h                              \
+    interrupt.h                             \
     $(NULL)
 
 PRETTY_FILES                             = \
